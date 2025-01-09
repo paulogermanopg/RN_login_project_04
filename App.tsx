@@ -1,41 +1,146 @@
-import React from 'react';
-import {Dimensions, StyleSheet, Text, TextInput, View} from 'react-native';
-import Svg, {Image} from 'react-native-svg';
+import React, {useState} from 'react';
+import {
+  Dimensions,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Svg, {Image, Ellipse, ClipPath} from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  withTiming,
+  withDelay,
+  runOnJS,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 
 const {height, width} = Dimensions.get('window');
 export default function App() {
+  const imagePosition = useSharedValue(1);
+  const formButtonScale = useSharedValue(1);
+  const [isRegister, setIsRegister] = useState<boolean>(false);
+
+  const imageAnimatedStyle = useAnimatedStyle(() => {
+    const interpolation = interpolate(
+      imagePosition.value,
+      [0, 1],
+      [-height / 1.8, 0],
+    );
+    return {
+      transform: [
+        {
+          translateY: withTiming(interpolation, {
+            duration: 1000,
+          }),
+        },
+      ],
+    };
+  });
+
+  const buttonsAnimatedStyle = useAnimatedStyle(() => {
+    const interpolation = interpolate(imagePosition.value, [0, 1], [250, 0]);
+    return {
+      opacity: withTiming(imagePosition.value, {duration: 500}),
+      transform: [{translateY: withTiming(interpolation, {duration: 1000})}],
+    };
+  });
+
+  const closeButtonContainerStyle = useAnimatedStyle(() => {
+    const interpolation = interpolate(imagePosition.value, [0, 1], [180, 360]);
+    return {
+      opacity: withTiming(imagePosition.value === 1 ? 0 : 1, {duration: 800}),
+      transform: [
+        {rotate: withTiming(interpolation + 'deg', {duration: 1000})},
+      ],
+    };
+  });
+
+  const formAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity:
+        imagePosition.value === 0
+          ? withDelay(400, withTiming(1, {duration: 800}))
+          : withTiming(0, {duration: 300}),
+    };
+  });
+
+  const formButtonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{scale: formButtonScale.value}],
+    };
+  });
+
+  const handlerLogin = () => {
+    imagePosition.value = 0;
+    if (isRegister) {
+      setIsRegister(false);
+      runOnJS(setIsRegister)(false);
+    }
+  };
+
+  const handlerRegister = () => {
+    imagePosition.value = 0;
+    if (!isRegister) {
+      setIsRegister(true);
+      runOnJS(setIsRegister)(true);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={StyleSheet.absoluteFill}>
-        <Svg height={height / 2} width={width}>
+      <Animated.View style={[StyleSheet.absoluteFill, imageAnimatedStyle]}>
+        <Svg height={height + 100} width={width}>
+          <ClipPath id="clipPhatId">
+            <Ellipse cx={width / 2} rx={height} ry={height + 100} />
+          </ClipPath>
           <Image
             href={require('./assets/moon.jpg')}
-            width={width}
-            height={height}
+            width={width + 100}
+            height={height + 100}
             preserveAspectRatio="xMidYMid slice"
+            clipPath="url(#clipPhatId)"
           />
         </Svg>
-        <View style={styles.closeButtonContainer}>
-          <Text>X</Text>
-        </View>
-      </View>
+        <Animated.View
+          style={[styles.closeButtonContainer, closeButtonContainerStyle]}>
+          <Text onPress={() => (imagePosition.value = 1)}>X</Text>
+        </Animated.View>
+      </Animated.View>
 
       <View style={styles.buttonContainer}>
-        {/* <View style={styles.button}>
-          <Text style={styles.buttonText}>Login</Text>
-        </View>
-        <View style={styles.button}>
-          <Text style={styles.buttonText}>Resgistrar</Text>
-        </View> */}
-        <View style={styles.formInputContainer}>
+        <Animated.View style={buttonsAnimatedStyle}>
+          <Pressable style={styles.button} onPress={handlerLogin}>
+            <Text style={styles.buttonText}>Login</Text>
+          </Pressable>
+        </Animated.View>
+
+        <Animated.View style={buttonsAnimatedStyle}>
+          <Pressable style={styles.button} onPress={handlerRegister}>
+            <Text style={styles.buttonText}>Resgistrar</Text>
+          </Pressable>
+        </Animated.View>
+
+        <Animated.View style={[styles.formInputContainer, formAnimatedStyle]}>
           <TextInput placeholder="E-mail" style={styles.textInput} />
-          <TextInput placeholder="Nome" style={styles.textInput} />
+          {isRegister && (
+            <TextInput placeholder="Nome" style={styles.textInput} />
+          )}
+
           <TextInput placeholder="Senha" style={styles.textInput} />
 
-          <View style={styles.formButton}>
-            <Text style={styles.buttonText}>Login</Text>
-          </View>
-        </View>
+          <Animated.View style={[styles.formButton, formButtonAnimatedStyle]}>
+            <Pressable onPress={() => formButtonScale.value = withSequence(withSpring(1.5), withSpring(1))}>
+              <Text style={styles.buttonText}>
+                {isRegister ? 'REGISTRAR' : 'LOGIN'}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </Animated.View>
       </View>
     </View>
   );
@@ -97,6 +202,9 @@ const styles = StyleSheet.create({
   },
   formInputContainer: {
     marginBottom: 70,
+    ...StyleSheet.absoluteFill,
+    zIndex: -1,
+    justifyContent: 'center',
   },
   closeButtonContainer: {
     height: 40,
@@ -114,5 +222,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6.27,
     elevation: 1,
     backgroundColor: '#aaa',
+    top: -20,
   },
 });
